@@ -979,9 +979,35 @@
   }
 
   // ========== Phrases ==========
+  // 每个类别的换一批 offset
+  const _phraseOffsets = {};
+
   function renderPhrases(){
     const tabs = $('#phraseTabs');
     const grid = $('#phraseGrid');
+
+    // 在 tabs 后插入控制条
+    let panel = tabs.parentElement;
+    if(!panel.querySelector('.phrase-controls')){
+      const ctrls = document.createElement('div');
+      ctrls.className = 'phrase-controls';
+      ctrls.style.cssText = 'display:flex;gap:8px;align-items:center;justify-content:space-between;margin:6px 4px 10px;font-size:12px;color:#7d7d96';
+      ctrls.innerHTML = `
+        <span id="phCount"></span>
+        <button class="btn-mini" id="btnNextPhrase" style="padding:6px 10px">🔄 换一批</button>
+      `;
+      panel.insertBefore(ctrls, grid);
+
+      panel.querySelector('#btnNextPhrase').addEventListener('click', ()=>{
+        // 当前类别 + 1
+        const activeCat = $$('.pt.active')[0];
+        const idx = $$('.pt').indexOf(activeCat);
+        if(idx>=0) _phraseOffsets[idx] = ((_phraseOffsets[idx]||0) + 1) % D.phraseCats[idx].list.length;
+        activeCat.click();
+        toast('已换一批短语 🎲');
+      });
+    }
+
     D.phraseCats.forEach((cat,i)=>{
       const btn = document.createElement('button');
       btn.className = 'pt' + (i===0?' active':'');
@@ -989,8 +1015,26 @@
       btn.addEventListener('click', ()=>{
         $$('.pt').forEach(b=>b.classList.remove('active'));
         btn.classList.add('active');
+
+        // 每日从该类别 stable seed 挑 6 个
+        const day = (new Date().getFullYear()*10000 + (new Date().getMonth()+1)*100 + new Date().getDate());
+        const seed = (day + i + (_phraseOffsets[i]||0) + 7) * 9301;
+        const list = cat.list;
+        const order = Array.from({length:list.length},(_,k)=>k);
+        let s = seed;
+        for(let k=list.length-1;k>0;k--){
+          s = (s*9301 + 49297) % 233280;
+          const j = Math.floor((s/233280)*(k+1));
+          [order[k],order[j]]=[order[j],order[k]];
+        }
+        const picked = order.slice(0, Math.min(6, list.length)).map(idx=>list[idx]);
+
         grid.innerHTML = '';
-        cat.list.forEach(p=>{
+        // 显示计数
+        const counter = panel.querySelector('#phCount');
+        if(counter) counter.innerHTML = `📅 每日刷新 · 共 <b>${list.length}</b> 条 · 今日 <b>${picked.length}</b> 条`;
+
+        picked.forEach(p=>{
           const c = document.createElement('div');
           c.className = 'phrase-card';
           c.innerHTML = `
@@ -1001,10 +1045,12 @@
             <div class="actions">
               <button class="btn-icon-round" data-act="say">🔊 英音</button>
               <button class="btn-icon-round" data-act="slow">🐢 慢读</button>
+              <button class="btn-icon-round" data-act="sayen">🇬🇧 短句</button>
             </div>
           `;
           c.querySelector('[data-act="say"]').addEventListener('click', ()=> TTS.speakEN(p.ex));
           c.querySelector('[data-act="slow"]').addEventListener('click', ()=> TTS.speakEN(p.ex, {rate:0.6}));
+          c.querySelector('[data-act="sayen"]').addEventListener('click', ()=> TTS.speakEN(p.en));
           grid.appendChild(c);
         });
       });
@@ -1015,9 +1061,51 @@
   }
 
   // ========== Grammar ==========
+  let _grammarOffset = 0;
   function renderGrammar(){
     const wrap = $('#grammarList');
-    D.grammarTopics.forEach(g=>{
+    // 添加顶部控件
+    let panel = wrap.parentElement;
+    if(!panel.querySelector('.gram-controls')){
+      const ctrls = document.createElement('div');
+      ctrls.className = 'gram-controls';
+      ctrls.style.cssText = 'display:flex;gap:8px;align-items:center;justify-content:space-between;margin:6px 4px 10px;font-size:12px;color:#7d7d96';
+      ctrls.innerHTML = `
+        <span id="gramCount"></span>
+        <button class="btn-mini" id="btnNextGrammar" style="padding:6px 10px">🔄 换一批</button>
+      `;
+      panel.insertBefore(ctrls, wrap);
+
+      panel.querySelector('#btnNextGrammar').addEventListener('click', ()=>{
+        _grammarOffset = (_grammarOffset + 1) % D.grammarTopics.length;
+        renderGrammarBody();
+        toast('已换一批语法 📘');
+      });
+    }
+    renderGrammarBody();
+  }
+
+  function renderGrammarBody(){
+    const wrap = $('#grammarList');
+    wrap.innerHTML = '';
+    const day = (new Date().getFullYear()*10000 + (new Date().getMonth()+1)*100 + new Date().getDate());
+    const seed = (day + _grammarOffset + 19) * 9301;
+    const list = D.grammarTopics;
+    const order = Array.from({length:list.length},(_,k)=>k);
+    let s = seed;
+    for(let k=list.length-1;k>0;k--){
+      s = (s*9301 + 49297) % 233280;
+      const j = Math.floor((s/233280)*(k+1));
+      [order[k],order[j]]=[order[j],order[k]];
+    }
+    const count = Math.min(4, list.length);
+    const picked = order.slice(0, count).map(i => list[i]);
+
+    // 更新计数器
+    const counter = wrap.parentElement.querySelector('#gramCount');
+    if(counter) counter.innerHTML = `📅 每日刷新 · 共 <b>${list.length}</b> 主题 · 今日 <b>${picked.length}</b> 主题`;
+
+    picked.forEach(g=>{
       const c = document.createElement('div');
       c.className = 'g-card';
       let html = `<h4>${g.title}</h4><p style="font-size:13px;color:#7d7d96">${g.intro}</p>`;
@@ -1041,9 +1129,51 @@
   }
 
   // ========== G1 必学词 ==========
+  let _g1Offset = 0;
   function renderG1(){
     const grid = $('#g1Grid');
-    D.g1Words.forEach(w=>{
+    const panel = grid.parentElement;
+    if(!panel.querySelector('.g1-controls')){
+      const ctrls = document.createElement('div');
+      ctrls.className = 'g1-controls';
+      ctrls.style.cssText = 'display:flex;gap:8px;align-items:center;justify-content:space-between;margin:6px 4px 10px;font-size:12px;color:#7d7d96';
+      ctrls.innerHTML = `
+        <input type="search" id="g1Search" placeholder="🔍 搜单词" style="padding:6px 12px;border-radius:10px;border:1px solid var(--c-line);background:var(--c-card);color:var(--c-text);outline:none;width:120px"/>
+        <span id="g1Count"></span>
+        <button class="btn-mini" id="btnNextG1" style="padding:6px 10px">🔄 换一批</button>
+      `;
+      panel.insertBefore(ctrls, grid);
+      panel.querySelector('#btnNextG1').addEventListener('click', ()=>{
+        _g1Offset = (_g1Offset + 1) % D.g1Words.length;
+        renderG1Body();
+        toast('已换一批单词 🎲');
+      });
+      panel.querySelector('#g1Search').addEventListener('input', ()=>renderG1Body());
+    }
+    renderG1Body();
+  }
+
+  function renderG1Body(){
+    const grid = $('#g1Grid');
+    grid.innerHTML = '';
+    const day = (new Date().getFullYear()*10000 + (new Date().getMonth()+1)*100 + new Date().getDate());
+    const seed = (day + _g1Offset + 31) * 9301;
+    const list = D.g1Words;
+    const order = Array.from({length:list.length},(_,k)=>k);
+    let s = seed;
+    for(let k=list.length-1;k>0;k--){
+      s = (s*9301 + 49297) % 233280;
+      const j = Math.floor((s/233280)*(k+1));
+      [order[k],order[j]]=[order[j],order[k]];
+    }
+    const search = ($('#g1Search')||{value:''}).value.trim().toLowerCase();
+    let picked = order.slice(0, 30).map(i => list[i]);
+    if(search) picked = list.filter(w => w.toLowerCase().includes(search));
+
+    const counter = grid.parentElement.querySelector('#g1Count');
+    if(counter) counter.innerHTML = `共 <b>${list.length}</b> · 今日 <b>${picked.length}</b>`;
+
+    picked.forEach(w=>{
       const c = document.createElement('div');
       c.className = 'g1-card';
       c.innerHTML = `<div class="gw">${w}</div>`;
@@ -1053,10 +1183,34 @@
   }
 
   // ========== EN Storybooks ==========
+  let _enBookOffset = 0;
   function renderEnBooks(){
     const grid = $('#enBookGrid');
+    const panel = grid.parentElement;
+    if(!panel.querySelector('.enbook-controls')){
+      const ctrls = document.createElement('div');
+      ctrls.className = 'enbook-controls';
+      ctrls.style.cssText = 'display:flex;gap:8px;align-items:center;justify-content:space-between;margin:6px 4px 10px;font-size:12px;color:#7d7d96';
+      ctrls.innerHTML = `
+        <span id="ebCount"></span>
+        <button class="btn-mini" id="btnNextEb" style="padding:6px 10px">🔄 换一组</button>
+      `;
+      panel.insertBefore(ctrls, grid);
+      panel.querySelector('#btnNextEb').addEventListener('click', ()=>{
+        _enBookOffset = (_enBookOffset + 1) % D.enBooks.length;
+        renderEnBookBody();
+        toast('已换一组绘本 📚');
+      });
+    }
+    renderEnBookBody();
+  }
+  function renderEnBookBody(){
+    const grid = $('#enBookGrid');
     grid.innerHTML = '';
-    const books = D.dailyPick(D.enBooks, 5, 5);
+    const day = (new Date().getFullYear()*10000 + (new Date().getMonth()+1)*100 + new Date().getDate());
+    const books = D.dailyPick(D.enBooks, 5, 5 + _enBookOffset);
+    const counter = grid.parentElement.querySelector('#ebCount');
+    if(counter) counter.innerHTML = `📅 每日刷新 · 共 <b>${D.enBooks.length}</b> 本 · 今日 <b>${books.length}</b> 本`;
     books.forEach((b,i)=>{
       const card = document.createElement('div');
       card.className = 'book-card';
