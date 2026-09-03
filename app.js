@@ -559,19 +559,162 @@
         <div class="ic">${m.ic}</div>
         <div class="it">${m.t}</div>
         <div class="id">${m.d}</div>
+        <div style="font-size:11px;color:var(--c-text-soft);margin-top:8px">👉 进入学习</div>
       `;
-      card.addEventListener('click', ()=>{
-        openModal(`
-          <h3>${m.t}</h3>
-          <div style="text-align:center;font-size:54px;margin:20px 0">${m.ic}</div>
-          <div class="modal-sentence">${m.d}</div>
-          <div class="modal-row">
-            <button class="btn-primary" data-act="say">🔊 听解释</button>
-          </div>
-        `);
-        $('#modalBody [data-act="say"]').addEventListener('click', ()=> TTS.speakCN(m.d));
-      });
+      card.addEventListener('click', ()=> openFunPage(m));
       grid.appendChild(card);
+    });
+  }
+
+  // ============= 趣味识字详情页 =============
+  function openFunPage(m){
+    let body = `<h3>${m.ic} ${m.t}</h3>`;
+    body += `<p style="color:#7d7d96;text-align:center;font-size:13px;margin-bottom:8px">${m.desc||m.d}</p>`;
+
+    if(m.id === 'radical'){
+      // 部首：每个部首一个卡片
+      body += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">`;
+      m.radicals.forEach(r=>{
+        body += `<div class="vocab-card" style="cursor:default"><div class="vch" style="font-size:32px;color:#3a8aab">${r.r}</div>
+          <div class="vbody"><div style="color:#ff97a6;font-weight:700;font-size:13px">${r.name}</div>
+          <div class="vs" style="font-size:12px;color:#a04050">${r.ex}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${r.examples.map(ex=>`<span class="pinyin-chip" style="background:#fff5f7;padding:4px 8px;border-radius:8px;font-size:13px"><b>${ex.w}</b><br><small style="color:#a04050">${ex.pinyin}</small><br><small style="color:#7d7d96">${ex.m}</small></span>`).join('')}</div>
+          </div></div>`;
+      });
+      body += `</div>`;
+    } else if(m.id === 'riddle'){
+      // 字谜
+      body += `<div style="display:grid;gap:10px">`;
+      m.items.forEach((it,i)=>{
+        body += `<div class="vocab-card" style="cursor:default"><div class="vch" style="font-size:24px;font-weight:800;color:#a04050">${i+1}</div>
+          <div class="vbody"><div style="font-size:14px;font-weight:600">🤔 ${it.riddle}</div>
+          <details style="margin-top:6px"><summary style="cursor:pointer;color:#3a8aab;font-size:12px">查看答案</summary><div style="margin-top:4px;color:#a04050;font-weight:700;font-size:18px;text-align:center">${it.answer}</div></details></div></div>`;
+      });
+      body += `</div>`;
+    } else if(m.id === 'pic'){
+      // 图文识字
+      body += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">`;
+      m.items.forEach(it=>{
+        body += `<div class="vocab-card" style="cursor:default;flex-direction:column"><div style="font-size:48px;text-align:center">${it.img}</div>
+          <div style="text-align:center"><div style="font-size:28px;font-weight:700;color:#3a8aab">${it.word}</div><div style="color:#ff97a6">${it.pinyin}</div><div style="font-size:12px;color:#7d7d96">${it.hint}</div></div>
+          <div style="display:flex;gap:4px;justify-content:center;margin-top:6px"><button class="btn-icon-round" data-sayw="${it.word}">🔊 字</button><button class="btn-icon-round" data-says="${it.word} ${it.hint}">📖 句</button></div></div>`;
+      });
+      body += `</div>`;
+    } else if(m.id === 'ani'){
+      // 动画识字 (字源故事)
+      body += `<div style="display:grid;grid-template-columns:1fr;gap:10px">`;
+      m.items.forEach(it=>{
+        body += `<div class="vocab-card" style="cursor:default">
+          <div class="vch" style="font-size:36px;color:#3a8aab">${it.word}</div>
+          <div class="vbody"><div style="color:#ff97a6;font-size:13px">${it.pinyin}</div>
+          <div class="vs" style="font-size:13px">${it.story}</div>
+          <div style="font-size:24px;margin-top:4px">${it.img}</div></div>
+          <div class="vp"><button class="btn-icon-round" data-sayw="${it.word}">🔊</button></div>
+        </div>`;
+      });
+      body += `</div>`;
+    } else if(m.id === 'picto'){
+      // 象形字
+      body += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">`;
+      m.items.forEach(it=>{
+        body += `<div class="vocab-card" style="cursor:default;flex-direction:column;text-align:center">
+          <div style="font-size:36px;color:#7d7d96;font-family:serif">${it.old}</div>
+          <div style="font-size:12px;color:#7d7d96;margin:4px 0">↓ 古→今 ↓</div>
+          <div style="font-size:38px;font-weight:800;color:#3a8aab">${it.new}</div>
+          <div style="color:#ff97a6;font-size:13px">${it.pinyin}</div>
+          <div style="font-size:30px;margin:4px 0">${it.img}</div>
+          <div style="font-size:12px;color:#a04050;font-weight:600">${it.ex}</div>
+          <button class="btn-mini" style="margin-top:6px" data-sayw="${it.new}">🔊 读</button>
+        </div>`;
+      });
+      body += `</div>`;
+    } else if(m.id === 'contrast'){
+      // 对比识字
+      body += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">`;
+      m.pairs.forEach(p=>{
+        body += `<div class="vocab-card" style="cursor:default;flex-direction:column">
+          <div style="display:flex;justify-content:space-around;align-items:center">
+            <div style="text-align:center"><div style="font-size:32px;font-weight:700;color:#3a8aab">${p.a}</div><div style="color:#ff97a6;font-size:13px">${p.exa}</div></div>
+            <div style="font-size:13px;color:#a04050">${p.ta}</div>
+            <div style="text-align:center"><div style="font-size:32px;font-weight:700;color:#ff8fab">${p.b}</div><div style="color:#a04050;font-size:13px">${p.exb}</div></div>
+          </div>
+          <div style="display:flex;justify-content:center;gap:6px;margin-top:6px">
+            <button class="btn-icon-round" data-sayw="${p.a}">🔊</button>
+            <button class="btn-icon-round" data-sayw="${p.b}">🔊</button>
+          </div>
+        </div>`;
+      });
+      body += `</div>`;
+    } else if(m.id === 'rhythm'){
+      // 儿歌识字
+      body += `<div style="display:grid;gap:10px">`;
+      m.songs.forEach(s=>{
+        body += `<div class="vocab-card" style="cursor:default;flex-direction:column">
+          <div style="font-size:18px;font-weight:700;color:#3a8aab;text-align:center">${s.t}</div>
+          <div style="font-size:14px;line-height:1.9;margin:10px;padding:10px;background:#fff5f7;border-radius:10px">${s.lines.map(l=>l.replace(/(.)/g, '<span style="margin:2px">$1</span>')).join('<br>')}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:4px">${s.words.map(w=>`<span style="background:#f0f9fc;padding:4px 10px;border-radius:12px;font-size:16px;font-weight:700;color:#3a8aab" data-sayw="${w}">${w}</span>`).join('')}</div>
+          <div style="display:flex;justify-content:center;gap:8px;margin-top:8px"><button class="btn-primary" data-rname="${s.t}" data-rlines="${encodeURIComponent(s.lines.join('|'))}">🔊 朗读</button></div>
+        </div>`;
+      });
+      body += `</div>`;
+    } else if(m.id === 'game'){
+      // 游戏识字
+      body += `<div style="display:grid;gap:10px">`;
+      m.games.forEach(g=>{
+        body += `<div class="vocab-card" style="cursor:default;flex-direction:column">
+          <div style="font-size:18px;font-weight:700;color:#a04050">🎮 ${g.n}</div>
+          <div style="font-size:13px;color:#7d7d96;margin:6px 0">${g.d}</div>
+          <details style="font-size:13px;background:#f0f9fc;padding:10px;border-radius:10px"><summary style="cursor:pointer;color:#3a8aab;font-weight:600">来试试</summary><div style="margin-top:6px;color:#3b3b5e">${g.ex}</div></details>
+        </div>`;
+      });
+      body += `</div>`;
+    }
+
+    // 底部动作条
+    body += `<div class="modal-row" style="margin-top:14px"><button class="btn-secondary" id="btnBackToFun">← 返回趣味识字</button></div>`;
+    // 关闭并替换主体
+    openModal(body);
+    const modal = $('#modalBody');
+
+    // 通用：w/字 朗读
+    modal.querySelectorAll('[data-sayw]').forEach(btn=>{
+      btn.addEventListener('click', ()=> TTS.speakCN(btn.dataset.sayw));
+    });
+    // 通用：句子朗读
+    modal.querySelectorAll('[data-says]').forEach(btn=>{
+      btn.addEventListener('click', ()=> TTS.speakCN(btn.dataset.says));
+    });
+    // 儿歌整首朗读
+    modal.querySelectorAll('[data-rname]').forEach(btn=>{
+      btn.addEventListener('click', ()=> {
+        const lines = decodeURIComponent(btn.dataset.rlines).split('|');
+        lines.reduce((p,l)=> p.then(()=> TTS.speakCN(l)), Promise.resolve());
+      });
+    });
+    // 返回
+    const back = modal.querySelector('#btnBackToFun');
+    if(back){
+      back.addEventListener('click', ()=>{
+        // 用一个 "页面栈" 仍然用 modal 显示整个趣味识字 8 卡网格
+        showFunGrid();
+      });
+    }
+  }
+
+  function showFunGrid(){
+    let body = `<h3>🎮 趣味识字 · 选一个学</h3><div class="fun-grid">`;
+    D.funMethods.forEach(m=>{
+      body += `<div class="fun-card" data-id="${m.id}">
+        <div class="ic">${m.ic}</div>
+        <div class="it">${m.t}</div>
+        <div class="id">${m.d}</div>
+        <div style="font-size:11px;color:var(--c-text-soft);margin-top:8px">👉 进入学习</div>
+      </div>`;
+    });
+    body += `</div>`;
+    openModal(body);
+    $('#modalBody').querySelectorAll('.fun-card').forEach((el,i)=>{
+      el.addEventListener('click', ()=> openFunPage(D.funMethods[i]));
     });
   }
 
