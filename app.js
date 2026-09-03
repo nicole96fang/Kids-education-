@@ -906,10 +906,102 @@
       grid.appendChild(c);
     });
 
-    // 跟读
+    // 跟读 - 充足词汇 + 每日更新 + 多个池子 + 换一批
+    renderFollowUp();
+  }
+
+  // 跟读池子数据来源: enWords + 短语 + 字母下单词 + g1Words
+  function buildFollowPool(){
+    const pool = [];
+    // 1. 英文基础单词
+    D.enWords.forEach(w => pool.push({w:w.w, m:w.m, e:w.e, ex:w.ex, cat:'word'}));
+    // 2. 一年必学词 (去重)
+    const seen = new Set(pool.map(p=>p.w));
+    D.g1Words.forEach(w => { if(!seen.has(w)) { pool.push({w:w, m:'(一年级必学)', e:'📚', ex:w, cat:'g1'}); seen.add(w); } });
+    // 3. 短语
+    D.phraseCats.forEach(cat => {
+      cat.list.forEach(p => {
+        if(p.en.length <= 25 && !seen.has(p.en)){
+          pool.push({w:p.en, m:p.zh, e:cat.emoji, ex:p.ex, cat:'phrase'});
+          seen.add(p.en);
+        }
+      });
+    });
+    // 4. 字母单词
+    D.abcLetters.forEach(L => {
+      if(!seen.has(L.w)){
+        pool.push({w:L.w, m:`字母 ${L.L} 的代表词`, e:L.e, ex:`This is a ${L.w}.`, cat:'alpha'});
+        seen.add(L.w);
+      }
+    });
+    // 5. CVC 拼读
+    D.cvcWords.forEach(p => {
+      if(!seen.has(p.w)){
+        pool.push({w:p.w, m:p.zh, e:'🔤', ex:`a ${p.w}`, cat:'cvc'});
+        seen.add(p.w);
+      }
+    });
+    return pool;
+  }
+
+  let _followOffset = 0;
+  function renderFollowUp(){
     const rp = $('#rpGrid');
-    const sampleWords = D.dailyPick(D.enWords, 6, 4);
-    sampleWords.forEach(w=>{
+    // 标题 + 控制条
+    const section = rp.parentElement;
+    if(!section.querySelector('.follow-ctrls')){
+      const ctrls = document.createElement('div');
+      ctrls.className = 'follow-ctrls';
+      ctrls.style.cssText = 'display:flex;gap:6px;align-items:center;justify-content:space-between;margin:8px 4px;font-size:12px;color:#7d7d96';
+      ctrls.innerHTML = `
+        <span id="followCount"></span>
+        <div style="display:flex;gap:6px">
+          <select id="followCount2" style="padding:5px 8px;border-radius:10px;border:1px solid var(--c-line);background:var(--c-card);color:var(--c-text);outline:none;font-size:12px">
+            <option value="20">20 个</option>
+            <option value="40" selected>40 个</option>
+            <option value="60">60 个</option>
+            <option value="100">100 个</option>
+          </select>
+          <button class="btn-mini" id="btnFollowNext" style="padding:6px 10px">🔄 换一批</button>
+        </div>
+      `;
+      section.insertBefore(ctrls, rp);
+
+      // 介绍文字
+      const intro = section.querySelector('p');
+      if(intro && intro.textContent.includes('点击词卡')){
+        intro.innerHTML = '点击 🔊 听发音，再点 🎤 跟读。词库 <b>' + buildFollowPool().length + ' 个</b> · 每日不重复 · 可一键换一批。';
+      }
+
+      section.querySelector('#btnFollowNext').addEventListener('click', ()=>{
+        _followOffset = (_followOffset + 1) % 50;
+        renderFollowBody();
+        toast('已换一批跟读 🎲');
+      });
+      section.querySelector('#followCount2').addEventListener('change', renderFollowBody);
+    }
+    renderFollowBody();
+  }
+
+  function renderFollowBody(){
+    const rp = $('#rpGrid');
+    rp.innerHTML = '';
+    const pool = buildFollowPool();
+    const N = parseInt(($('#followCount2')||{value:40}).value, 10) || 40;
+    const day = (new Date().getFullYear()*10000 + (new Date().getMonth()+1)*100 + new Date().getDate());
+    const seed = (day + _followOffset + 47) * 9301;
+    const order = Array.from({length:pool.length},(_,k)=>k);
+    let s = seed;
+    for(let k=pool.length-1;k>0;k--){
+      s = (s*9301 + 49297) % 233280;
+      const j = Math.floor((s/233280)*(k+1));
+      [order[k],order[j]]=[order[j],order[k]];
+    }
+    const picked = order.slice(0, Math.min(N, pool.length)).map(i=>pool[i]);
+    const counter = rp.parentElement.querySelector('#followCount');
+    if(counter) counter.innerHTML = `📅 每日刷新 · 词库 <b>${pool.length}</b> · 今日 <b>${picked.length}</b>`;
+
+    picked.forEach(w=>{
       const card = document.createElement('div');
       card.className = 'rp-card';
       card.innerHTML = `
@@ -918,21 +1010,28 @@
         <div class="rm">${w.m}</div>
         <div class="actions">
           <button class="btn-icon-round" data-act="play">🔊</button>
+          <button class="btn-icon-round" data-act="playex">📖</button>
           <button class="btn-icon-round" data-act="rec">🎤</button>
         </div>
-        <div class="rec-status" style="font-size:12px;color:#7d7d96;margin-top:4px">🎤 跟读：点麦克风</div>
+        <div class="rec-status" style="font-size:12px;color:#7d7d96;margin-top:4px;min-height:32px">🎤 跟读:点麦克风</div>
       `;
       card.querySelector('[data-act="play"]').addEventListener('click', ()=> TTS.speakEN(w.w));
+      card.querySelector('[data-act="playex"]').addEventListener('click', ()=> TTS.speakEN(w.ex));
       card.querySelector('[data-act="rec"]').addEventListener('click', ()=>{
         const status = card.querySelector('.rec-status');
-        status.textContent = '🎤 正在听...';
+        status.textContent = '🎤 正在听…请说出来';
         TTS.startRecognition('en-GB', (t)=>{
-          status.innerHTML = `🎤 你说：<b>${t}</b><br><small>目标：${w.w}</small>`;
-          TTS.speakEN('Great!');
-          toast('太棒了！👏');
+          status.innerHTML = `✅ 你说: <b>${t}</b><br><small>目标: ${w.w}</small>`;
+          if(t.toLowerCase().includes(w.w.toLowerCase().split(' ')[0])){
+            TTS.speakEN('Great!');
+            toast('太棒了!👏');
+          } else {
+            TTS.speakEN('Try again');
+            toast('再来一次 💪');
+          }
         }, (e)=>{
-          status.textContent = '🎤 跟读：点麦克风';
-          toast('没有听到，再试一次');
+          status.textContent = '🎤 跟读:点麦克风';
+          toast('没听清,再试一次');
         });
       });
       rp.appendChild(card);
