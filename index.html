@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#4ba7ca" />
+<title>Hao Yan Learn · 皓言学习工作台</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐳%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- 雪花动画层 -->
+<div class="snow-layer" id="snowLayer" aria-hidden="true"></div>
+
+<!-- 顶部状态条 -->
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">🐳</div>
+    <div>
+      <h1>Hao Yan Learn</h1>
+      <p class="subtitle">皓言学习工作台 · 一年级</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <button class="icon-btn" id="btnTheme" title="切换主题" aria-label="切换主题">🎨</button>
+    <button class="icon-btn" id="btnPrint" title="A4 打印" aria-label="打印">🖨️</button>
+    <button class="icon-btn" id="btnBackup" title="备份数据" aria-label="备份">💾</button>
+  </div>
+</header>
+
+<!-- 底部 Tab 导航 -->
+<nav class="tabbar" role="navigation" aria-label="主导航">
+  <button class="tab active" data-page="home">
+    <span class="tab-icon">🏠</span>
+    <span class="tab-label">首页</span>
+  </button>
+  <button class="tab" data-page="daily">
+    <span class="tab-icon">📅</span>
+    <span class="tab-label">每日任务</span>
+  </button>
+  <button class="tab" data-page="chinese">
+    <span class="tab-icon">🀄</span>
+    <span class="tab-label">语文</span>
+  </button>
+  <button class="tab" data-page="english">
+    <span class="tab-icon">🔤</span>
+    <span class="tab-label">英文</span>
+  </button>
+</nav>
+
+<script>
+// Allow ?page= tab navigation for testing
+(function(){
+  const params = new URLSearchParams(location.search);
+  const p = params.get('p') || params.get('page');
+  if(p){
+    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', b.dataset.page===p));
+    document.querySelectorAll('.page').forEach(pg=>pg.classList.toggle('active', pg.dataset.page===p));
+  }
+  const et = params.get('etab');
+  if(et){
+    document.querySelectorAll('.sub[data-entab]').forEach(b=>b.classList.toggle('active', b.dataset.entab===et));
+    document.querySelectorAll('.en-panel').forEach(pg=>pg.classList.toggle('active', pg.dataset.enpanel===et));
+  }
+  const ct = params.get('ctab');
+  if(ct){
+    document.querySelectorAll('.sub[data-cntab]').forEach(b=>b.classList.toggle('active', b.dataset.cntab===ct));
+    document.querySelectorAll('.cn-panel').forEach(pg=>pg.classList.toggle('active', pg.dataset.cnpanel===ct));
+  }
+})();
+</script>
+
+<!-- 主内容区 -->
+<main class="pages" id="pages">
+
+  <!-- 首页 -->
+  <section class="page active" data-page="home">
+    <div class="hero">
+      <div class="hero-cloud"></div>
+      <div class="hero-cloud small"></div>
+      <div class="hero-text">
+        <h2>嗨，皓言 👋</h2>
+        <p id="greetingText">今天我们一起学点儿什么呀？</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>📝 今日心得</h3>
+        <button class="btn-mini" id="btnSaveNote">保存</button>
+      </div>
+      <textarea id="dailyNote" placeholder="今天学了什么呢？感觉怎么样？"></textarea>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>📊 程度评估</h3>
+        <div class="rate-display"><span id="rateValue">3</span> / 5</div>
+      </div>
+      <div class="rating" id="ratingStars" role="radiogroup" aria-label="今日学习程度">
+        <span class="star" data-v="1">⭐</span>
+        <span class="star" data-v="2">⭐</span>
+        <span class="star" data-v="3">⭐</span>
+        <span class="star" data-v="4">⭐</span>
+        <span class="star" data-v="5">⭐</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>📈 成绩分析</h3></div>
+      <canvas id="chartCanvas" width="600" height="240" aria-label="近7日学习数据"></canvas>
+      <div class="chart-legend">
+        <span><i class="dot c-blue"></i> 完成度(%)</span>
+        <span><i class="dot c-pink"></i> 自评程度(1-5)</span>
+      </div>
+    </div>
+
+    <div class="card stats-grid">
+      <div class="stat">
+        <div class="stat-num" id="statDays">0</div>
+        <div class="stat-label">学习天数</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" id="statWords">0</div>
+        <div class="stat-label">累计单词</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" id="statBooks">0</div>
+        <div class="stat-label">阅读绘本</div>
+      </div>
+    </div>
+
+    <div class="card backup-card">
+      <div class="card-header"><h3>☁️ 备份与恢复</h3></div>
+      <p class="muted">Safari 清理可能导致数据丢失，建议定期手动备份。</p>
+      <div class="btn-group">
+        <button class="btn-primary" id="btnExport">📦 一键备份</button>
+        <label class="btn-secondary" for="importFile">📥 恢复数据</label>
+        <input type="file" id="importFile" accept="application/json" hidden />
+      </div>
+    </div>
+  </section>
+
+  <!-- 每日任务 -->
+  <section class="page" data-page="daily">
+    <div class="page-title">
+      <h2>📅 每日任务</h2>
+      <p class="muted" id="dailyDate"></p>
+    </div>
+
+    <div class="task-section">
+      <div class="task-header">
+        <span class="task-tag tag-chinese">中文</span>
+        <h3>5个汉字 + 5个词汇</h3>
+        <button class="btn-mini" id="btnNextCN">🔄 换一组</button>
+      </div>
+      <h4 style="font-size:13px;font-weight:700;margin:6px 4px;color:#3b8aab">🀄 生字（带拼音笔画）</h4>
+      <div class="word-list" id="cnWords"></div>
+      <h4 style="font-size:13px;font-weight:700;margin:14px 4px 6px;color:#a04050">📚 词汇（带例句）</h4>
+      <div class="word-list vocab-list" id="cnVocabs"></div>
+    </div>
+
+    <div class="task-section">
+      <div class="task-header">
+        <span class="task-tag tag-english">English</span>
+        <h3>5 English Words</h3>
+        <button class="btn-mini" id="btnNextEN">🔄 换一组</button>
+      </div>
+      <div class="word-list" id="enWords"></div>
+    </div>
+
+    <div class="task-section progress-section">
+      <div class="task-header"><h3>✅ 今日完成度</h3></div>
+      <div class="progress-ring">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" class="ring-bg"/>
+          <circle cx="50" cy="50" r="42" class="ring-fg" id="ringFg"/>
+        </svg>
+        <div class="ring-text"><span id="ringPct">0</span>%</div>
+      </div>
+      <div class="checklist">
+        <label><input type="checkbox" data-task="cn-word-1"/> 中文单词1</label>
+        <label><input type="checkbox" data-task="cn-word-2"/> 中文单词2</label>
+        <label><input type="checkbox" data-task="cn-word-3"/> 中文单词3</label>
+        <label><input type="checkbox" data-task="cn-word-4"/> 中文单词4</label>
+        <label><input type="checkbox" data-task="cn-word-5"/> 中文单词5</label>
+        <label><input type="checkbox" data-task="cn-vocab-1"/> 词汇1</label>
+        <label><input type="checkbox" data-task="cn-vocab-2"/> 词汇2</label>
+        <label><input type="checkbox" data-task="cn-vocab-3"/> 词汇3</label>
+        <label><input type="checkbox" data-task="cn-vocab-4"/> 词汇4</label>
+        <label><input type="checkbox" data-task="cn-vocab-5"/> 词汇5</label>
+        <label><input type="checkbox" data-task="en-word-1"/> EN word 1</label>
+        <label><input type="checkbox" data-task="en-word-2"/> EN word 2</label>
+        <label><input type="checkbox" data-task="en-word-3"/> EN word 3</label>
+        <label><input type="checkbox" data-task="en-word-4"/> EN word 4</label>
+        <label><input type="checkbox" data-task="en-word-5"/> EN word 5</label>
+      </div>
+    </div>
+  </section>
+
+  <!-- 语文 -->
+  <section class="page" data-page="chinese">
+    <div class="page-title"><h2>🀄 语文学习</h2></div>
+
+    <div class="subnav">
+      <button class="sub active" data-cntab="chars">一年级生字</button>
+      <button class="sub" data-cntab="vocab">词汇大全</button>
+      <button class="sub" data-cntab="idiom">成语</button>
+      <button class="sub" data-cntab="fun">趣味识字</button>
+      <button class="sub" data-cntab="read">阅读理解</button>
+      <button class="sub" data-cntab="books">绘本阅读</button>
+    </div>
+
+    <div class="cn-panel active" data-cnpanel="chars">
+      <div class="chars-filter">
+        <input type="search" id="charSearch" placeholder="🔍 搜索生字 / 拼音" />
+        <select id="charLesson">
+          <option value="all">全部单元</option>
+        </select>
+      </div>
+      <div class="char-grid" id="charGrid"></div>
+    </div>
+
+    <div class="cn-panel" data-cnpanel="vocab">
+      <div class="vocab-grid" id="vocabGrid"></div>
+    </div>
+
+    <div class="cn-panel" data-cnpanel="idiom">
+      <div class="idiom-grid" id="idiomGrid"></div>
+    </div>
+
+    <div class="cn-panel" data-cnpanel="fun">
+      <div class="fun-grid" id="funGrid"></div>
+    </div>
+
+    <div class="cn-panel" data-cnpanel="read">
+      <div class="read-list" id="readList"></div>
+    </div>
+
+    <div class="cn-panel" data-cnpanel="books">
+      <div class="book-grid" id="cnBookGrid"></div>
+    </div>
+  </section>
+
+  <!-- English -->
+  <section class="page" data-page="english">
+    <div class="page-title"><h2>🔤 English Learning</h2></div>
+
+    <div class="subnav">
+      <button class="sub active" data-entab="abc">ABC 启蒙</button>
+      <button class="sub" data-entab="phonics">自然拼读</button>
+      <button class="sub" data-entab="phrase">短语学习</button>
+      <button class="sub" data-entab="grammar">语法小课堂</button>
+      <button class="sub" data-entab="g1">一年级必学</button>
+      <button class="sub" data-entab="story">Storybook</button>
+    </div>
+
+    <div class="en-panel active" data-enpanel="abc">
+      <h3 class="panel-title">A-Z 字母启蒙</h3>
+      <div class="abc-grid" id="abcGrid"></div>
+
+      <h3 class="panel-title">跟读练习</h3>
+      <div class="read-practice">
+        <p>点击词卡听发音，再点麦克风跟读：</p>
+        <div class="rp-grid" id="rpGrid"></div>
+      </div>
+    </div>
+
+    <div class="en-panel" data-enpanel="phonics">
+      <h3 class="panel-title">字母音 Letter Sounds</h3>
+      <div class="phonics-grid" id="phLetter"></div>
+
+      <h3 class="panel-title">CVC 拼读</h3>
+      <div class="phonics-grid" id="phCvc"></div>
+
+      <h3 class="panel-title">Phonics 自然拼读规则</h3>
+      <div class="phonics-grid" id="phRule"></div>
+    </div>
+
+    <div class="en-panel" data-enpanel="phrase">
+      <div class="phrase-tabs" id="phraseTabs"></div>
+      <div class="phrase-grid" id="phraseGrid"></div>
+    </div>
+
+    <div class="en-panel" data-enpanel="grammar">
+      <div class="grammar-list" id="grammarList"></div>
+    </div>
+
+    <div class="en-panel" data-enpanel="g1">
+      <h3 class="panel-title">一年级必学词汇</h3>
+      <div class="g1-grid" id="g1Grid"></div>
+    </div>
+
+    <div class="en-panel" data-enpanel="story">
+      <div class="book-grid" id="enBookGrid"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- 卡片弹窗 -->
+<div class="modal" id="modal" hidden>
+  <div class="modal-mask"></div>
+  <div class="modal-card">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="data.js"></script>
+<script src="db.js"></script>
+<script src="tts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

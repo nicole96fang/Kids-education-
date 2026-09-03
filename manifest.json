@@ -1,0 +1,19 @@
+{
+  "name": "Hao Yan Learn · 皓言学习工作台",
+  "short_name": "Hao Yan",
+  "description": "小学1年级中英文学习工作台，水彩可爱风，本地保存，无广告无后端",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fdf9f6",
+  "theme_color": "#4ba7ca",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48dGV4dCB5PSIuOWVtIiBmb250LXNpemU9IjE4MCI+8J+SiDwvdGV4dD48L3N2Zz4=",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
