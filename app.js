@@ -719,21 +719,99 @@
   }
 
   // ========== 语文：阅读理解 ==========
+  // 当前阅读理解的偏移（可手动改）
+  let _readOffset = 0;
   function bindReading(){
+    // 渲染筛选条
+    const panel = $('[data-cnpanel="read"]');
+    if(panel && !panel.querySelector('.read-filter')){
+      const title = document.createElement('h3');
+      title.className = 'panel-title';
+      title.innerHTML = '📚 今日阅读';
+      panel.insertBefore(title, panel.querySelector('#readList'));
+
+      const filter = document.createElement('div');
+      filter.className = 'chars-filter read-filter';
+      filter.innerHTML = `
+        <select id="readLevel">
+          <option value="all">全部层级</option>
+          <option value="短句">短句</option>
+          <option value="儿歌">儿歌</option>
+          <option value="小故事">小故事</option>
+          <option value="短文">短文</option>
+          <option value="记叙文">记叙文</option>
+        </select>
+        <button class="btn-mini" id="btnNextRead">🔄 换一组</button>
+      `;
+      panel.insertBefore(filter, panel.querySelector('#readList'));
+
+      panel.querySelector('#readLevel').addEventListener('change', renderReading);
+      panel.querySelector('#btnNextRead').addEventListener('click', ()=>{
+        _readOffset = (_readOffset + 1) % D.readingList.length;
+        renderReading();
+        toast('已换一组阅读 📖');
+      });
+    }
+    renderReading();
+  }
+
+  function renderReading(){
     const grid = $('#readList');
-    D.readingList.forEach(r=>{
+    if(!grid) return;
+    const lvlSel = $('#readLevel');
+    const level = lvlSel ? lvlSel.value : 'all';
+    const panel = grid.closest('[data-cnpanel="read"]');
+
+    let arr = D.readingList.slice();
+    if(level !== 'all'){
+      arr = arr.filter(r => r.level === level);
+    }
+
+    // 每日种子 = yyyymmdd + offset，stable。
+    const day = new Date();
+    const baseSeed = day.getFullYear()*10000 + (day.getMonth()+1)*100 + day.getDate();
+    const seed = baseSeed + _readOffset;
+    const picked = [];
+    const n = arr.length;
+    const order = Array.from({length:n},(_,i)=>i);
+    let s = seed;
+    for(let i=n-1;i>0;i--){
+      s = (s*9301+49297) % 233280;
+      const j = Math.floor((s/233280)*(i+1));
+      [order[i],order[j]] = [order[j],order[i]];
+    }
+    const count = arr.length < 5 ? arr.length : 5;
+    for(let i=0;i<count;i++) picked.push(arr[order[i]]);
+
+    grid.innerHTML = '';
+    if(picked.length === 0){
+      grid.innerHTML = '<div class="muted" style="text-align:center;padding:20px">这个层级暂时没有内容 🌸</div>';
+      return;
+    }
+    picked.forEach(r=>{
       const card = document.createElement('div');
       card.className = 'read-card';
       card.innerHTML = `
-        <h4>${r.title}<span class="level">${r.level}</span></h4>
+        <h4>${r.icon||'📖'} ${r.title}<span class="level">${r.level}</span></h4>
         <div class="passage">${r.passage}</div>
         <div class="q">${r.q}</div>
-        <details style="margin-top:6px;font-size:13px;color:#3b8aab"><summary style="cursor:pointer">查看答案</summary><div style="margin-top:6px;color:#a04050">${r.a}</div></details>
-        <div class="wc-actions" style="margin-top:8px"><button class="btn-icon-round" data-act="say">🔊</button></div>
+        <details style="margin-top:6px;font-size:13px;color:#3b8aab"><summary style="cursor:pointer">查看答案</summary><div style="margin-top:6px;color:#a04050;font-weight:600">${r.a}</div></details>
+        <div class="wc-actions" style="margin-top:8px"><button class="btn-icon-round" data-act="say">🔊 朗读</button></div>
       `;
       card.querySelector('[data-act="say"]').addEventListener('click', ()=> TTS.speakCN(r.passage));
       grid.appendChild(card);
     });
+
+    // 顶部加入 「共 X 篇 · 今日显示 Y」
+    let counter = panel && panel.querySelector('.read-counter');
+    if(!counter){
+      counter = document.createElement('div');
+      counter.className = 'read-counter muted';
+      counter.style.cssText = 'margin:0 4px 8px;font-size:12px;display:flex;justify-content:space-between;align-items:center';
+      panel.insertBefore(counter, grid);
+    }
+    const today = day.toLocaleDateString('zh-CN', {month:'long', day:'numeric', weekday:'long'});
+    counter.innerHTML = `<span>📅 ${today}</span><span>共 ${arr.length} 篇 · 今日 ${picked.length} 篇</span>`;
   }
 
   // ========== 中文绘本 ==========
